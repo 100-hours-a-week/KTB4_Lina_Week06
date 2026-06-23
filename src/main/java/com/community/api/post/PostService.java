@@ -3,6 +3,7 @@ package com.community.api.post;
 import com.community.api.comment.Comment;
 import com.community.api.comment.CommentRepository;
 import com.community.api.comment.CommentService;
+import com.community.api.like.LikeRepository;
 import com.community.api.common.BadRequestException;
 import com.community.api.common.ForbiddenException;
 import com.community.api.post.dto.AuthorInfo;
@@ -25,6 +26,7 @@ public class PostService {
     private final PostRepository postRepository;
     private final UserRepository userRepository;
     private final CommentRepository commentRepository;
+    private final LikeRepository likeRepository;
 
     // 게시글 작성
     public Long createPost(Long userId, CreatePostRequest request) throws IOException{
@@ -58,9 +60,14 @@ public class PostService {
     public PostListResponse getPosts(int page, int limit) throws IOException{
         List<Post> posts = postRepository.findAll();
         int total = posts.size();
-        int fromIndex = (page - 1)*limit;
-        int toIndex = Math.min(fromIndex + limit, total);
-        List<Post> paged = posts.subList(fromIndex, toIndex);
+        int fromIndex = (page - 1) * limit;
+        List<Post> paged;
+        if (fromIndex < 0 || fromIndex >= total) {
+            paged = new ArrayList<>();
+        } else {
+            int toIndex = Math.min(fromIndex + limit, total);
+            paged = posts.subList(fromIndex, toIndex);
+        }
         boolean hasNext = (page * limit) < total;
 
         return PostListResponse.builder()
@@ -78,12 +85,13 @@ public class PostService {
         Post post = postRepository.findByPostId(postId)
                 .orElseThrow(() -> new BadRequestException("not_found_post"));
 
-        User author = userRepository.findByUserId(post.getAuthorId()).get();
-        //authorInfo 정보 반환
-        AuthorInfo authorInfo = AuthorInfo.builder()
-                .nickname(author.getNickname())
-                .profileImage(author.getProfileImage())
-                .build();
+        // 조회수 갱신
+        post.setViewsCount(post.getViewsCount() + 1);
+        postRepository.update(post);
+
+        // 작성자 조회 - 탈퇴한 경우 "알수없음" 처리
+        User author = userRepository.findByUserId(post.getAuthorId()).orElse(null);
+        AuthorInfo authorInfo = AuthorInfo.from(author);
 
         List<Comment> comments = commentRepository.findByPostId(postId);
 
@@ -148,5 +156,7 @@ public class PostService {
         }
 
         postRepository.delete(postId);
+        commentRepository.deleteByPostId(postId);
+        likeRepository.deleteByPostId(postId);
     }
 }

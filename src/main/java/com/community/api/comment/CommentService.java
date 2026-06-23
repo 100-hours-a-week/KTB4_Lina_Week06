@@ -34,6 +34,11 @@ public class CommentService {
         comment.setPostId(postId);
 
         Comment saved = commentRepository.save(comment);
+
+        // 댓글 수 갱신
+        post.setCommentsCount(post.getCommentsCount() + 1);
+        postRepository.update(post);
+
         return saved.getCommentId();
     }
 
@@ -70,5 +75,11 @@ public class CommentService {
         }
 
         commentRepository.delete(commentId);
+
+        // 댓글 수 갱신
+        postRepository.findByPostId(comment.getPostId()).ifPresent(post -> {
+            post.setCommentsCount(Math.max(0, post.getCommentsCount() - 1));
+            try { postRepository.update(post); } catch (IOException e) { throw new RuntimeException(e); }
+        });
     }
 }

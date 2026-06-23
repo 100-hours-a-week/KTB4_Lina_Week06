@@ -13,4 +13,5 @@ public class User {
     private String password;
     private String profileImage;
     private Long userId;
+    private boolean isDeleted = false;
 }

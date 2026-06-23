@@ -70,4 +70,14 @@ public class CommentRepository {
         File file = new File(FILE_PATH);
         objectMapper.writeValue(file, deleted);
     }
+
+    // 게시글 삭제 시 연관 댓글 일괄 삭제
+    public void deleteByPostId(Long postId) throws IOException {
+        List<Comment> comments = readAll();
+        List<Comment> deleted = comments.stream()
+                .filter(c -> !c.getPostId().equals(postId))
+                .collect(Collectors.toList());
+        File file = new File(FILE_PATH);
+        objectMapper.writeValue(file, deleted);
+    }
 }

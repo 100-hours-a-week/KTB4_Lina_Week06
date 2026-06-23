@@ -46,4 +46,14 @@ public class LikeRepository {
         objectMapper.writeValue(file, deleted);
     }
 
+    // 게시글 삭제 시 연관 좋아요 일괄 삭제
+    public void deleteByPostId(Long postId) throws IOException {
+        List<Like> likes = readAll();
+        List<Like> deleted = likes.stream()
+                .filter(l -> !l.getPostId().equals(postId))
+                .collect(Collectors.toList());
+        File file = new File(FILE_PATH);
+        objectMapper.writeValue(file, deleted);
+    }
+
 }

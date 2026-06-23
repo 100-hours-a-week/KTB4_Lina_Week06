@@ -74,13 +74,14 @@ public class UserRepository {
         return user;
     }
 
-    // 유저 정보 삭제(탈퇴)
+    // 사용자 탈퇴 시 soft delete로 적용
     public void delete(Long userId) throws IOException {
         List<User> users = readAll();
-        List<User> deleted = users.stream()
-                .filter(u -> !u.getUserId().equals(userId))
-                .collect(Collectors.toList());
+        users.stream()
+                .filter(u -> u.getUserId().equals(userId))
+                .findFirst()
+                .ifPresent(u -> u.setDeleted(true));
         File file = new File(FILE_PATH);
-        objectMapper.writeValue(file, deleted);
+        objectMapper.writeValue(file, users);
     }
 }

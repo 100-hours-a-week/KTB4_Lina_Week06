@@ -1,16 +1,1 @@
-[
-  {
-    "content" : "마바사",
-    "createdAt" : "2026-01-05 00:25:30",
-    "authorId" : 2,
-    "postId" : 1,
-    "commentId" : 1
-  },
-  {
-    "content" : "떡볶이 추천",
-    "createdAt" : "2026-01-10 01:20:34",
-    "authorId" : 1,
-    "postId" : 3,
-    "commentId" : 2
-  }
-]
+[{"authorId":2,"commentId":1,"content":"마바사","createdAt":"2026-01-05 00:25:30","postId":1},{"authorId":1,"commentId":2,"content":"떡볶이 추천","createdAt":"2026-01-10 01:20:34","postId":3}]
