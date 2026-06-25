@@ -6,9 +6,8 @@ import com.community.api.post.Post;
 import com.community.api.post.PostRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.io.IOException;
-import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -17,15 +16,16 @@ public class Likeservice {
     private final LikeRepository likeRepository;
     private final PostRepository postRepository;
 
-    public LikeResponse pushLike(Long userId, Long postId) throws IOException {
+    @Transactional
+    public LikeResponse pushLike(Long userId, Long postId){
         Optional<Like> likes = likeRepository.findByPostIdAndUserId(postId, userId);
 
-        Post post = postRepository.findByPostId(postId)
+        Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new BadRequestException("not_found_post"));
 
         if (likes.isPresent()) {
             // 좋아요 취소
-            likeRepository.delete(postId, userId);
+            likeRepository.deleteByPostIdAndUserId(postId, userId);
             post.setLikesCount(post.getLikesCount() - 1);
         } else {
             // 좋아요 추가
@@ -36,7 +36,7 @@ public class Likeservice {
             post.setLikesCount(post.getLikesCount() + 1);
         }
 
-        Post updated = postRepository.update(post);
+        Post updated = postRepository.save(post);
         return LikeResponse.builder()
                 .likesCount(updated.getLikesCount())
                 .liked(!likes.isPresent())

@@ -14,6 +14,7 @@ import com.community.api.user.User;
 import com.community.api.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -29,7 +30,7 @@ public class PostService {
     private final LikeRepository likeRepository;
 
     // 게시글 작성
-    public Long createPost(Long userId, CreatePostRequest request) throws IOException{
+    public Long createPost(Long userId, CreatePostRequest request){
         // 제목 필수 기입
         if (request.getTitle() == null || request.getTitle().isBlank())
             throw new BadRequestException("title_required");
@@ -57,7 +58,7 @@ public class PostService {
     }
 
     // 게시글 목록 조회
-    public PostListResponse getPosts(int page, int limit) throws IOException{
+    public PostListResponse getPosts(int page, int limit){
         List<Post> posts = postRepository.findAll();
         int total = posts.size();
         int fromIndex = (page - 1) * limit;
@@ -80,17 +81,17 @@ public class PostService {
     }
 
     // 게시글 상세 조회
-    public PostDetailResponse getDetailPost(Long postId) throws IOException{
+    public PostDetailResponse getDetailPost(Long postId){
         // 게시글이 존재하지 않을 때
-        Post post = postRepository.findByPostId(postId)
+        Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new BadRequestException("not_found_post"));
 
         // 조회수 갱신
         post.setViewsCount(post.getViewsCount() + 1);
-        postRepository.update(post);
+        postRepository.save(post);
 
         // 작성자 조회 - 탈퇴한 경우 "알수없음" 처리
-        User author = userRepository.findByUserId(post.getAuthorId()).orElse(null);
+        User author = userRepository.findById(post.getAuthorId()).orElse(null);
         AuthorInfo authorInfo = AuthorInfo.from(author);
 
         List<Comment> comments = commentRepository.findByPostId(postId);
@@ -110,7 +111,7 @@ public class PostService {
     }
 
     // 게시글 수정
-    public Long updatePost(Long userId, Long postId, CreatePostRequest request) throws IOException{
+    public Long updatePost(Long userId, Long postId, CreatePostRequest request){
         // 제목 필수 기입
         if (request.getTitle() == null || request.getTitle().isBlank())
             throw new BadRequestException("title_required");
@@ -124,7 +125,7 @@ public class PostService {
             throw new BadRequestException("content_required");
 
         // 게시글 찾기
-        Post post = postRepository.findByPostId(postId)
+        Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new BadRequestException("not_found_post"));
 
         // user 인증 -> 본인 게시글인지
@@ -139,15 +140,16 @@ public class PostService {
             post.setImage(request.getImage());
         }
 
-        Post updated = postRepository.update(post);
+        Post updated = postRepository.save(post);
         return updated.getPostId();
     }
 
     // 게시글 삭제
-    public void deletePost(Long userId, Long postId) throws IOException{
+    @Transactional
+    public void deletePost(Long userId, Long postId){
 
         // 게시글 찾기
-        Post post = postRepository.findByPostId(postId)
+        Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new BadRequestException("not_found_post"));
 
         // user 인증 -> 본인 게시글인지
@@ -155,7 +157,7 @@ public class PostService {
             throw new ForbiddenException("forbidden");
         }
 
-        postRepository.delete(postId);
+        postRepository.deleteById(postId);
         commentRepository.deleteByPostId(postId);
         likeRepository.deleteByPostId(postId);
     }

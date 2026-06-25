@@ -10,15 +10,13 @@ import com.community.api.user.dto.UpdateProfileRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
-
 @Service
 @RequiredArgsConstructor
 public class UserService {
     private final UserRepository userRepository;
     private final TokenStore tokenStore;
 
-    public Long signup(SignupRequest request) throws IOException {
+    public Long signup(SignupRequest request) {
 
         // 이메일 필수 기입
         if (request.getEmail() == null || request.getEmail().isBlank()){
@@ -75,7 +73,7 @@ public class UserService {
         return savedUser.getUserId();
     }
 
-    public String login(LoginRequest request) throws IOException {
+    public String login(LoginRequest request) {
         // 이메일 필수 기입
         if (request.getEmail() == null || request.getEmail().isBlank()){
             throw new BadRequestException("email_required");
@@ -103,7 +101,7 @@ public class UserService {
     }
 
     // 업데이트 프로필
-    public void updateProfile(Long userId, UpdateProfileRequest request) throws IOException{
+    public void updateProfile(Long userId, UpdateProfileRequest request) {
         // 닉네임 필수 기입
         if (request.getNickname() == null || request.getNickname().isBlank()){
             throw new BadRequestException("nickname_required");
@@ -118,7 +116,7 @@ public class UserService {
         }
 
         // userid 찾기 -> 서비스 요청한 것이 본인인지 확인하기 위함
-        User user = userRepository.findByUserId(userId)
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BadRequestException("invalid_credentials"));
 
         // 유저 정보 수정
@@ -126,11 +124,11 @@ public class UserService {
         if(request.getProfileImage() != null){
             user.setProfileImage(request.getProfileImage());
         }
-        userRepository.update(user);
+        userRepository.save(user);
     }
 
     // 비밀번호 수정
-    public void updatePassword(Long userId, UpdatePasswordRequest request) throws IOException{
+    public void updatePassword(Long userId, UpdatePasswordRequest request){
         // 비밀번호 필수 기입
         if (request.getPassword() == null || request.getPassword().isBlank()) {
             throw new BadRequestException("password_required");
@@ -140,20 +138,20 @@ public class UserService {
             throw new BadRequestException("invalid_password_format");
         }
         // userid 찾기 -> 서비스 요청한 것이 본인인지 확인하기 위함
-        User user = userRepository.findByUserId(userId)
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BadRequestException("invalid_credentials"));
 
         // 수정 정보 저장
         user.setPassword(request.getPassword());
-        userRepository.update(user);
+        userRepository.save(user);
     }
 
     // 회원탈퇴
-    public void deleteUser(Long userId) throws IOException{
+    public void deleteUser(Long userId){
         // userid 찾기 -> 서비스 요청한 것이 본인인지 확인하기 위함
-        User user = userRepository.findByUserId(userId)
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BadRequestException("invalid_credentials"));
         // 탈퇴 처리
-        userRepository.delete(userId);
+        userRepository.delete(user);
     }
 }
