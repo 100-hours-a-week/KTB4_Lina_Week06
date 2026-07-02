@@ -2,21 +2,17 @@ package com.community.api.post;
 
 import com.community.api.comment.Comment;
 import com.community.api.comment.CommentRepository;
-import com.community.api.comment.CommentService;
-import com.community.api.like.LikeRepository;
+import com.community.api.comment.dto.CommentResponse;
 import com.community.api.common.BadRequestException;
 import com.community.api.common.ForbiddenException;
-import com.community.api.post.dto.AuthorInfo;
-import com.community.api.post.dto.CreatePostRequest;
-import com.community.api.post.dto.PostDetailResponse;
-import com.community.api.post.dto.PostListResponse;
+import com.community.api.like.LikeRepository;
+import com.community.api.post.dto.*;
 import com.community.api.user.User;
 import com.community.api.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -71,8 +67,24 @@ public class PostService {
         }
         boolean hasNext = (page * limit) < total;
 
+        // 각 게시글에 작성자 정보 추가
+        List<PostListItem> items = new ArrayList<>();
+        for(Post post : paged){
+            User author = userRepository.findById(post.getAuthorId()).orElse(null);
+            items.add(PostListItem.builder()
+                    .postId(post.getPostId())
+                    .title(post.getTitle())
+                    .image(post.getImage())
+                    .likesCount(post.getLikesCount())
+                    .viewsCount(post.getViewsCount())
+                    .commentsCount(post.getCommentsCount())
+                    .createdAt(post.getCreatedAt())
+                    .author(AuthorInfo.from(author))
+                    .build());
+        }
+
         return PostListResponse.builder()
-                .posts(paged)
+                .posts(items)
                 .page(page)
                 .limit(limit)
                 .total(total)
@@ -96,6 +108,18 @@ public class PostService {
 
         List<Comment> comments = commentRepository.findByPostId(postId);
 
+        // 각 댓글에 작성자 정보 붙이기
+        List<CommentResponse> commentResponses = new ArrayList<>();
+        for (Comment c : comments) {
+            User commentAuthor = userRepository.findById(c.getAuthorId()).orElse(null);
+            commentResponses.add(CommentResponse.builder()
+                    .commentId(c.getCommentId())
+                    .content(c.getContent())
+                    .createdAt(c.getCreatedAt())
+                    .author(AuthorInfo.from(commentAuthor))
+                    .build());
+        }
+
         return PostDetailResponse.builder()
                 .postId(post.getPostId())
                 .title(post.getTitle())
@@ -106,7 +130,7 @@ public class PostService {
                 .commentsCount(post.getCommentsCount())
                 .createdAt(post.getCreatedAt())
                 .author(authorInfo)
-                .comments(comments)
+                .comments(commentResponses)
                 .build();
     }
 

@@ -24,7 +24,7 @@ public class AuthInterceptor implements HandlerInterceptor {
             Object handler) throws Exception{
 
         // GET 요청 인증 불필요
-        if(request.getMethod().equals("GET")){
+        if(request.getMethod().equals("GET") || request.getMethod().equals("OPTIONS")){
             return true;
         }
         String authHeader = request.getHeader("Authorization");

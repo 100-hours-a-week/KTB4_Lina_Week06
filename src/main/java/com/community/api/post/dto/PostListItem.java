@@ -1,21 +1,18 @@
 package com.community.api.post.dto;
 
-import com.community.api.comment.dto.CommentResponse;
 import lombok.Builder;
 import lombok.Getter;
-import java.util.List;
+import lombok.Setter;
 
 @Getter
 @Builder
-public class PostDetailResponse {
+public class PostListItem {
     private Long postId;
     private String title;
-    private String content;
     private String image;
     private int likesCount;
     private int viewsCount;
     private int commentsCount;
     private String createdAt;
     private AuthorInfo author;
-    private List<CommentResponse> comments;
 }
