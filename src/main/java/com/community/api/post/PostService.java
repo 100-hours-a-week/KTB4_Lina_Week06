@@ -10,6 +10,7 @@ import com.community.api.post.dto.*;
 import com.community.api.user.User;
 import com.community.api.user.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +26,7 @@ public class PostService {
     private final CommentRepository commentRepository;
     private final LikeRepository likeRepository;
 
+    @PreAuthorize("isAuthenticated()")
     // 게시글 작성
     public Long createPost(Long userId, CreatePostRequest request){
         // 제목 필수 기입

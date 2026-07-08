@@ -3,7 +3,6 @@ package com.community.api.user;
 import com.community.api.comment.CommentRepository;
 import com.community.api.common.BadRequestException;
 import com.community.api.common.DuplicateException;
-import com.community.api.common.TokenStore;
 import com.community.api.like.LikeRepository;
 import com.community.api.post.Post;
 import com.community.api.post.PostRepository;
@@ -11,7 +10,17 @@ import com.community.api.user.dto.LoginRequest;
 import com.community.api.user.dto.SignupRequest;
 import com.community.api.user.dto.UpdatePasswordRequest;
 import com.community.api.user.dto.UpdateProfileRequest;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,10 +30,12 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserService {
     private final UserRepository userRepository;
-    private final TokenStore tokenStore;
     private final PostRepository postRepository;
     private final CommentRepository commentRepository;
     private final LikeRepository likeRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final AuthenticationManager authenticationManager;
+    private final SecurityContextRepository securityContextRepository;
 
     public Long signup(SignupRequest request) {
 
@@ -75,7 +86,7 @@ public class UserService {
 
         User user = new User();
         user.setEmail(request.getEmail());
-        user.setPassword(request.getPassword());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setNickname(request.getNickname());
         user.setProfileImage(request.getProfileImage());
 
@@ -83,7 +94,7 @@ public class UserService {
         return savedUser.getUserId();
     }
 
-    public String login(LoginRequest request) {
+    public void login(LoginRequest request, HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) {
         // 이메일 필수 기입
         if (request.getEmail() == null || request.getEmail().isBlank()){
             throw new BadRequestException("email_required");
@@ -100,15 +111,19 @@ public class UserService {
         if (!request.getPassword().matches("^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[!@#$%^&*()_+\\-=]).{8,20}$")) {
             throw new BadRequestException("invalid_password_format");
         }
-        // 이메일 혹은 비밀번호 오류
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new BadRequestException("invalid_credentials"));
-        if (!user.getPassword().equals(request.getPassword())){
+        try{
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+            );
+            SecurityContext context = SecurityContextHolder.createEmptyContext();
+            context.setAuthentication(authentication);
+            SecurityContextHolder.setContext(context);
+            securityContextRepository.saveContext(context, httpServletRequest, httpServletResponse);
+        } catch (AuthenticationException e){
             throw new BadRequestException("invalid_credentials");
         }
-
-        return tokenStore.createToken(user.getUserId());
     }
+
 
     // 업데이트 프로필
     public void updateProfile(Long userId, UpdateProfileRequest request) {
@@ -155,7 +170,7 @@ public class UserService {
                 .orElseThrow(() -> new BadRequestException("invalid_credentials"));
 
         // 수정 정보 저장
-        user.setPassword(request.getPassword());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
         userRepository.save(user);
     }
 
