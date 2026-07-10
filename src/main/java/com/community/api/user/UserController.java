@@ -6,8 +6,7 @@ import com.community.api.user.dto.LoginRequest;
 import com.community.api.user.dto.SignupRequest;
 import com.community.api.user.dto.UpdatePasswordRequest;
 import com.community.api.user.dto.UpdateProfileRequest;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import com.community.api.user.dto.response.LoginResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -29,9 +28,12 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<?>> login(@RequestBody LoginRequest request, HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) {
-        userService.login(request, httpServletRequest, httpServletResponse);
-        return ResponseEntity.ok(ApiResponse.of("login_success"));
+    public ResponseEntity<ApiResponse<LoginResponse>> login(@RequestBody LoginRequest request) {
+        String accessToken = userService.login(request);
+
+        LoginResponse response = new LoginResponse(accessToken);
+
+        return ResponseEntity.ok(ApiResponse.of("login_success", response));
     }
 
     @PatchMapping("/profile")

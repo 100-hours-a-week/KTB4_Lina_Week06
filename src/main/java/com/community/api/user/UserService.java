@@ -1,5 +1,7 @@
 package com.community.api.user;
 
+import com.community.api.auth.CustomUserDetails;
+import com.community.api.auth.JwtService;
 import com.community.api.comment.CommentRepository;
 import com.community.api.common.BadRequestException;
 import com.community.api.common.DuplicateException;
@@ -10,17 +12,12 @@ import com.community.api.user.dto.LoginRequest;
 import com.community.api.user.dto.SignupRequest;
 import com.community.api.user.dto.UpdatePasswordRequest;
 import com.community.api.user.dto.UpdateProfileRequest;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,7 +32,7 @@ public class UserService {
     private final LikeRepository likeRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
-    private final SecurityContextRepository securityContextRepository;
+    private final JwtService jwtService;
 
     public Long signup(SignupRequest request) {
 
@@ -94,7 +91,7 @@ public class UserService {
         return savedUser.getUserId();
     }
 
-    public void login(LoginRequest request, HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) {
+    public String login(LoginRequest request) {
         // 이메일 필수 기입
         if (request.getEmail() == null || request.getEmail().isBlank()){
             throw new BadRequestException("email_required");
@@ -115,10 +112,14 @@ public class UserService {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
             );
-            SecurityContext context = SecurityContextHolder.createEmptyContext();
-            context.setAuthentication(authentication);
-            SecurityContextHolder.setContext(context);
-            securityContextRepository.saveContext(context, httpServletRequest, httpServletResponse);
+
+            CustomUserDetails customUserDetails = (CustomUserDetails) authentication.getPrincipal();
+
+
+            return jwtService.createAccessToken(
+                    customUserDetails.getUserId(),
+                    customUserDetails.getUsername()
+            );
         } catch (AuthenticationException e){
             throw new BadRequestException("invalid_credentials");
         }
