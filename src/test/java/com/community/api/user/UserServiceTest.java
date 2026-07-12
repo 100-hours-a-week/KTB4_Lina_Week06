@@ -1,11 +1,14 @@
 package com.community.api.user;
 
+import com.community.api.auth.CustomUserDetails;
+import com.community.api.auth.JwtService;
 import com.community.api.comment.CommentRepository;
 import com.community.api.common.BadRequestException;
 import com.community.api.common.DuplicateException;
 import com.community.api.like.LikeRepository;
 import com.community.api.post.Post;
 import com.community.api.post.PostRepository;
+import com.community.api.user.dto.LoginRequest;
 import com.community.api.user.dto.SignupRequest;
 import com.community.api.user.dto.UpdatePasswordRequest;
 import com.community.api.user.dto.UpdateProfileRequest;
@@ -16,6 +19,10 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -46,6 +53,12 @@ class UserServiceTest {
 
     @Mock
     private LikeRepository likeRepository;
+
+    @Mock
+    private AuthenticationManager authenticationManager;
+
+    @Mock
+    private JwtService jwtService;
 
     @Test
     @DisplayName("회원가입 성공")
@@ -419,7 +432,7 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("비밀번호가 null이면 비밀번호 수정에 실패")
+    @DisplayName("비밀번호가 null이 비밀번호 수정에 실패")
     void test_updatePassword_fail_passwordRequired() {
 
         Long userId = 1L;
@@ -516,5 +529,218 @@ class UserServiceTest {
         });
 
         verify(userRepository).findById(userId);
+    }
+
+    @Test
+    @DisplayName("로그인에 성공하면 JWT access token을 반환")
+    void test_login_success() {
+        LoginRequest request = new LoginRequest(
+                "test@gmail.com",
+                "Test1234!"
+        );
+
+        Authentication authentication = mock(Authentication.class);
+        CustomUserDetails customUserDetails = mock(CustomUserDetails.class);
+
+        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                .thenReturn(authentication);
+
+        when(authentication.getPrincipal())
+                .thenReturn(customUserDetails);
+
+        when(customUserDetails.getUserId())
+                .thenReturn(1L);
+
+        when(customUserDetails.getUsername())
+                .thenReturn("test@gmail.com");
+
+        when(jwtService.createAccessToken(1L, "test@gmail.com"))
+                .thenReturn("access-token");
+
+        // when
+        String token = userService.login(request);
+
+        // then
+        assertEquals("access-token", token);
+
+        verify(authenticationManager).authenticate(any(UsernamePasswordAuthenticationToken.class));
+        verify(jwtService).createAccessToken(1L, "test@gmail.com");
+    }
+
+    @Test
+    @DisplayName("인증에 실패하면 로그인에 실패")
+    void test_login_fail_invalidCredentials() {
+        LoginRequest request = new LoginRequest(
+                "test@gmail.com",
+                "Test1234!"
+        );
+
+        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                .thenThrow(new BadCredentialsException("bad credentials"));
+
+        assertThrows(BadRequestException.class, () -> {
+            userService.login(request);
+        });
+
+        verify(authenticationManager).authenticate(any(UsernamePasswordAuthenticationToken.class));
+    }
+
+    @Test
+    @DisplayName("이메일 비어 있으면 로그인 실패")
+    void test_login_fail_emailRequired() {
+        LoginRequest request = new LoginRequest(
+                "",
+                "Test1234!"
+        );
+
+        assertThrows(BadRequestException.class, () -> {
+            userService.login(request);
+        });
+
+        verify(authenticationManager, never())
+                .authenticate(any(UsernamePasswordAuthenticationToken.class));
+    }
+
+    @Test
+    @DisplayName("이메일 형식이 올바르지 않으면 로그인 실패")
+    void test_login_fail_invalidEmailFormat() {
+        LoginRequest request = new LoginRequest(
+                "invalid-email",
+                "Test1234!"
+        );
+
+        assertThrows(BadRequestException.class, () -> {
+            userService.login(request);
+        });
+    }
+
+    @Test
+    @DisplayName("비밀번호가 비어 있으면 로그인에 실패")
+    void test_login_fail_passwordRequired() {
+        LoginRequest request = new LoginRequest(
+                "test@gmail.com",
+                ""
+        );
+
+        assertThrows(BadRequestException.class, () -> {
+            userService.login(request);
+        });
+    }
+
+    @Test
+    @DisplayName("비밀번호 형식이 올바르지 않으면 로그인에 실패")
+    void test_login_fail_invalidPasswordFormat() {
+        LoginRequest request = new LoginRequest(
+                "test@gmail.com",
+                "password"
+        );
+
+        assertThrows(BadRequestException.class, () -> {
+            userService.login(request);
+        });
+    }
+
+    @Test
+    @DisplayName("이메일이 비어 있으면 회원가입에 실패")
+    void test_signup_fail_emailRequired() {
+        SignupRequest request = new SignupRequest(
+                "",
+                "Test1234!",
+                "test",
+                "https://example.com/profile.jpg"
+        );
+
+        assertThrows(BadRequestException.class, () -> {
+            userService.signup(request);
+        });
+    }
+
+    @Test
+    @DisplayName("이메일 형식이 올바르지 않으면 회원가입 실패")
+    void test_signup_fail_invalidEmailFormat() {
+        SignupRequest request = new SignupRequest(
+                "invalid-email",
+                "Test1234!",
+                "test",
+                "https://example.com/profile.jpg"
+        );
+
+        assertThrows(BadRequestException.class, () -> {
+            userService.signup(request);
+        });
+    }
+
+    @Test
+    @DisplayName("비밀번호가 비어 있으면 회원가입 실패")
+    void test_signup_fail_passwordRequired() {
+        SignupRequest request = new SignupRequest(
+                "test@gmail.com",
+                "",
+                "test",
+                "https://example.com/profile.jpg"
+        );
+
+        assertThrows(BadRequestException.class, () -> {
+            userService.signup(request);
+        });
+    }
+
+    @Test
+    @DisplayName("비밀번호 형식이 올바르지 않으면 회원가입 실패")
+    void test_signup_fail_invalidPasswordFormat() {
+        SignupRequest request = new SignupRequest(
+                "test@gmail.com",
+                "password",
+                "test",
+                "https://example.com/profile.jpg"
+        );
+
+        assertThrows(BadRequestException.class, () -> {
+            userService.signup(request);
+        });
+    }
+
+    @Test
+    @DisplayName("닉네임이 비어 있으면 회원가입 실패")
+    void test_signup_fail_nicknameRequired() {
+        SignupRequest request = new SignupRequest(
+                "test@gmail.com",
+                "Test1234!",
+                "",
+                "https://example.com/profile.jpg"
+        );
+        assertThrows(BadRequestException.class, () -> {
+            userService.signup(request);
+        });
+    }
+
+    @Test
+    @DisplayName("닉네임 형식이 올바르지 않으면 회원가입에 실패한다")
+    void test_signup_fail_invalidNicknameFormat() {
+        SignupRequest request = new SignupRequest(
+                "test@gmail.com",
+                "Test1234!",
+                "bad nickname",
+                "https://example.com/profile.jpg"
+        );
+
+        assertThrows(BadRequestException.class, () -> {
+            userService.signup(request);
+        });
+    }
+
+    @Test
+    @DisplayName("프로필 이미지가 비어 있으면 회원가입에 실패한다")
+    void test_signup_fail_profileImageRequired() {
+        SignupRequest request = new SignupRequest(
+                "test@gmail.com",
+                "Test1234!",
+                "test",
+                ""
+        );
+
+        assertThrows(BadRequestException.class, () -> {
+            userService.signup(request);
+        });
     }
 }
