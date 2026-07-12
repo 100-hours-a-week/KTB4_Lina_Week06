@@ -1,5 +1,6 @@
 package com.community.api.config;
 
+import com.community.api.auth.JwtFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -13,8 +14,6 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
-import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -25,6 +24,8 @@ import java.util.List;
 @EnableWebSecurity
 @EnableMethodSecurity //메서드 보안 기능 활성화
 public class SecurityConfig {
+
+    private final JwtFilter jwtFilter;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -43,7 +44,7 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
 
-                //.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
 
                 // 로그인(인증)하지 않고 보호된 api 접속 시도 시
                 .exceptionHandling(ex -> ex
@@ -53,17 +54,7 @@ public class SecurityConfig {
                             response.getWriter().write("{\"message\":\"unauthorized\",\"data\":null}");
                         })
                 )
-                .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
-                .logout(logout -> logout
-                        .logoutUrl("/users/logout")
-                        .invalidateHttpSession(true)
-                        .deleteCookies("JESSIOND")
-                        .logoutSuccessHandler((request, response, authentication) -> {
-                            response.setStatus(200);
-                            response.setContentType("application/json;charset=UTF-8");
-                            response.getWriter().write("{\"message\":\"logout_success\",\"data\":null}");
-                        })
-                );
+                .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()));
 
         return http.build();
     }
@@ -102,8 +93,7 @@ public class SecurityConfig {
         return configuration.getAuthenticationManager();
     }
 
-    @Bean
-    public SecurityContextRepository securityContextRepository(){
-        return new HttpSessionSecurityContextRepository();
+    public SecurityConfig(JwtFilter jwtFilter){
+        this.jwtFilter = jwtFilter;
     }
 }

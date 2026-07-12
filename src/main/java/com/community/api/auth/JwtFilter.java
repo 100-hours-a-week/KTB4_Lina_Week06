@@ -4,8 +4,11 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+
 
 import java.io.IOException;
 
@@ -13,6 +16,8 @@ import java.io.IOException;
 public class JwtFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+
+    private final CustomUserDetailsService customUserDetailsService;
 
     @Override
     protected void doFilterInternal(
@@ -31,11 +36,17 @@ public class JwtFilter extends OncePerRequestFilter {
             return;
         }
         Long userId = jwtService.getUserId(token);
+        CustomUserDetails customUserDetails = customUserDetailsService.loadUserById(userId);
+
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(customUserDetails, null, customUserDetails.getAuthorities());
+
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
         filterChain.doFilter(request, response);
     }
 
-    public JwtFilter(JwtService jwtService){
+    public JwtFilter(JwtService jwtService, CustomUserDetailsService customUserDetailsService){
         this.jwtService = jwtService;
+        this.customUserDetailsService = customUserDetailsService;
     }
-
 }
