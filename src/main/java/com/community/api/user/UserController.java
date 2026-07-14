@@ -61,7 +61,8 @@ public class UserController {
         Map<String, Object> data = Map.of(
                 "email", user.getEmail(),
                 "nickname", user.getNickname(),
-                "profile_image", user.getProfileImage() == null ? "" : user.getProfileImage()
+                "profile_image", user.getProfileImage() == null ? "" : user.getProfileImage(),
+                "user_id", user.getUserId()
         );
         return ResponseEntity.status(200).body(ApiResponse.of("get_my_info_success", data));
     }
